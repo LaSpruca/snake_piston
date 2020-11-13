@@ -20,3 +20,12 @@ pub enum GameState {
     Over,
     Playing
 }
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+    None
+}
