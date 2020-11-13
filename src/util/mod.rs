@@ -15,7 +15,7 @@ pub enum Cell {
     Tail
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GameState {
     Over,
     Playing

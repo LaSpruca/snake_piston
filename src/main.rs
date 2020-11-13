@@ -22,6 +22,9 @@ pub struct App {
     delta_total: f64,
     state: GameState,
     direction: Direction,
+    tail: Vec<(i32, i32)>,
+    speed: f64,
+    score: u32
 }
 
 impl App {
@@ -29,9 +32,7 @@ impl App {
         use graphics::*;
 
         let square = rectangle::square(0.0, 0.0, 25.0);
-        let grid = &self.grid;
-
-        let state = self.state;
+        let grid = self.grid.clone();
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
@@ -57,15 +58,10 @@ impl App {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        use piston::input::keyboard::*;
-        match self.state {
-            GameState::Playing => {
-                self.delta_total += args.dt;
-                if self.delta_total > 0.200 {
-                    println!("Update");
-                    self.delta_total = 0.0;
-
-                    let mut tail = vec!();
+        self.delta_total += args.dt;
+        if self.delta_total > self.speed {
+            match self.state {
+                GameState::Playing => {
                     let mut head = (-1, -1);
                     let mut food = (0, 0);
 
@@ -73,7 +69,6 @@ impl App {
                         for (y, cell) in row.iter().enumerate() {
                             match cell {
                                 Cell::Head => head = (x as i32, y as i32),
-                                Cell::Tail => tail.push((x as i32, y as i32)),
                                 Cell::Food => food = (x as i32, y as i32),
                                 _ => {}
                             }
@@ -81,13 +76,7 @@ impl App {
                         }
                     }
 
-                    tail.push(head);
-
-                    if food == head {
-                        self.new_fruit();
-                    } else {
-                        tail.remove(0);
-                    }
+                    self.tail.push(head);
 
                     match self.direction {
                         Direction::Up => {
@@ -105,13 +94,21 @@ impl App {
                         _ => {}
                     }
 
-                    for (x, y) in tail.clone() {
+                    if food == head {
+                        self.new_fruit();
+                        self.speed *= 0.99;
+                        self.score += 1;
+                        println!("Score: {}", self.score);
+                    } else {
+                        self.tail.remove(0);
+                    }
+
+                    for (x, y) in self.tail.clone() {
                         self.grid[x as usize][y as usize] = Cell::Tail;
                     }
 
                     self.grid[food.0 as usize][food.1 as usize] = Cell::Food;
 
-                    println!("Head {:?}, Tail {:#?}", head, tail);
 
                     if head.1 >= 0 && head.0 >= 0 {
                         if head.1 < 15 && head.0 < 15 {
@@ -123,9 +120,14 @@ impl App {
                         println!("Game Over!");
                         self.state = GameState::Over;
                     }
+
+                    if self.tail.contains(&head) {
+                        self.state = GameState::Over
+                    }
                 }
+                GameState::Over => {}
             }
-            GameState::Over => {}
+            self.delta_total = 0.0;
         }
     }
 
@@ -136,6 +138,9 @@ impl App {
             delta_total: 0.0,
             state: GameState::Playing,
             direction: Direction::None,
+            tail: vec!(),
+            speed: 0.200,
+            score: 0
         };
 
         app.grid[0][0] = Cell::Head;
@@ -146,7 +151,12 @@ impl App {
     }
 
     fn set_direction(&mut self, direction: Direction) {
-        if self.direction != direction {
+        use Direction::*;
+        if self.direction != direction && self.state != GameState::Over
+        && !(self.direction == Up && direction == Down)
+        && !(self.direction == Down && direction == Up)
+        && !(self.direction == Left && direction == Right)
+        && !(self.direction == Right && direction == Left) {
             self.direction = direction;
         }
     }
@@ -156,6 +166,9 @@ impl App {
         self.grid[0][0] = Cell::Head;
         self.direction = Direction::None;
         self.state = GameState::Playing;
+        self.tail = vec!();
+        self.speed = 0.2;
+        self.score = 0;
         self.new_fruit();
     }
 
